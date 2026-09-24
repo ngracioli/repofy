@@ -15,11 +15,15 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch src/index.ts",
-    "test": "tsx --test src/**/*.test.ts",
+    "test": "tsx --test \"test/**/*.test.ts\"",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome ci .",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
+    "@biomejs/biome": "2.5.14",
+    "@types/node": "22.20.4",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0"
   }
