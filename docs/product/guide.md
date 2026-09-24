@@ -36,8 +36,8 @@ for (const repo of page.items) {
   console.log(repo.name, repo.description, repo.primaryLanguage, repo.stars, repo.url);
 }
 
-if (page.hasNextPage) {
-  const nextPage = await page.next();
+const nextPage = await page.next();
+if (nextPage) {
   // Display nextPage.items or request another page when needed.
 }
 ```

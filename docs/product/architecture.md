@@ -23,11 +23,11 @@ Consumer application
             ├─ list()         → REST, owner-filtered, paged
             ├─ get()          → GraphQL, selected fields
             └─ getLanguages() → REST
-                 └─ Octokit transport
+                 └─ one configured Octokit client
                       └─ GitHub API
 ```
 
-The library owns endpoint selection, pagination mechanics, response normalization, and safe error mapping. The application owns the token's lifecycle, when to fetch another page, how to display results, and any application-level caching.
+The library owns endpoint selection, pagination mechanics, response normalization, and safe error mapping. The application owns the token's lifecycle, when to fetch another page, how to display results, and any application-level caching. Use one configured Octokit instance for REST, GraphQL, and its pagination plugin; keep endpoint-specific choices inside repository operations rather than maintaining parallel transport clients.
 
 ## Public API
 
@@ -50,7 +50,7 @@ for (const repository of page.items) {
 const nextPage = await page.next(); // undefined when there is no next page
 ```
 
-Each list call returns one page. `next()` performs at most one additional request and returns the next page or `undefined`; it does not prefetch. Avoid a `hasNextPage` property if it requires fetching the next page just to know whether one exists. The current usage guide shows a provisional `hasNextPage` property; align it with this recommendation when implementation starts.
+Each list call returns one page. `next()` performs at most one additional request and returns the next page or `undefined`; it does not prefetch. Do not expose `hasNextPage`: the REST Link header already drives the private iterator state, and learning whether a next page exists must not trigger a speculative request. This method is the stable public contract for pagination.
 
 `repositories.list()` defaults to repositories owned by the authenticated user. It must not silently include repositories available only through collaboration or organization membership. `repositories.get(owner, name)` may read a repository the token can access, consistent with the MVP. `getLanguages()` stays separate so listing many repositories does not trigger one request per item.
 
@@ -71,8 +71,6 @@ repofy/
       index.ts                   Public error exports
       github-api-error.ts         Safe GitHub API error
     github/
-      rest-client.ts             Shared REST client configuration
-      graphql-client.ts          Shared GraphQL client configuration
       pagination.ts              Shared pagination mechanics
     features/
       repositories/
@@ -89,9 +87,9 @@ repofy/
   test/
     unit/
       features/
-        repositories.test.ts
+        repositories.test.ts     Contract tests through the public client
       github/
-        pagination.test.ts
+        pagination.test.ts       Only if pagination behavior needs an isolated test
     integration/
       repositories.test.ts       Optional live GitHub tests, opt-in only
   docs/
@@ -108,14 +106,14 @@ repofy/
   CHANGELOG.md                   Add when releases begin
 ```
 
-`features/` groups code by user-facing GitHub domain; each feature owns its operations, mapping, and domain types. `github/` contains only shared transport concerns such as authentication headers and pagination. This keeps GitHub-specific HTTP details out of the public feature contract without adding a generic adapter layer. `shared/` is for code used by at least two features, not a default dumping ground.
+`features/` groups code by user-facing GitHub domain; each feature owns its operations, mapping, and domain types. `github/` contains only shared transport concerns such as pagination. The Octokit instance is configured once in `client.ts`; REST and GraphQL are methods on that same instance, not separate wrappers. This keeps GitHub-specific HTTP details out of the public feature contract without adding a generic adapter layer. `shared/` is for code used by at least two features, not a default dumping ground.
 
 Keep tests parallel to implementation at the feature boundary. Unit tests use mocked responses and need no token; integration tests must be opt-in and use a dedicated read-only token. Do not make CI depend on a user's personal GitHub credentials. Generated `dist/` should normally stay out of source control. Keep API references in `docs/github-api/` and product decisions in `docs/product/`; do not duplicate them in source comments.
 
 ### Module responsibilities and growth rules
 
 - `index.ts` exports only the supported public API.
-- `client.ts` creates the configured Octokit clients and exposes implemented feature groups on the returned client.
+- `client.ts` creates one configured Octokit instance and exposes implemented feature groups on the returned client.
 - `features/repositories/` owns repository operations, normalized repository types, and response mapping.
 - `github/` owns shared GitHub request configuration and pagination; it does not define product-facing repository behavior.
 - `errors/` defines safe public errors and maps upstream failures without leaking credentials.
@@ -153,7 +151,7 @@ Keep public types distinct from API transport types. If an explicit REST respons
 
 Use GitHub's authenticated-user repositories endpoint, with `affiliation=owner`, to enforce the product rule that listing returns owned repositories only. Set `per_page` from the validated `pageSize`, capped at 100, and map the REST fields into the normalized `Repository` type. Do not fetch repository details or language breakdown inside this loop.
 
-Use GitHub's `Link` pagination through the Octokit pagination iterator or an equivalent one-page mechanism. Do not call an eager helper that retrieves every page before returning. If Repofy returns a page wrapper with `next()`, retain the next-page state privately and perform the request only from that method.
+Use GitHub's `Link` pagination through `octokit.paginate.iterator()` or an equivalent one-page mechanism. Do not call the eager `octokit.paginate()` helper that retrieves every page before returning. Keep iterator state private; a public `next()` call advances it once and returns a new page, or `undefined` after exhaustion.
 
 ### GraphQL details
 
@@ -184,9 +182,11 @@ Useful error categories are invalid/unauthorized credentials, inaccessible or mi
 ## TypeScript and package setup
 
 - Write source in TypeScript and publish generated JavaScript plus declaration files.
-- Use strict compiler checking and Node's `NodeNext` module resolution for a Node-targeted package.
+- Use strict compiler checking, Node's `NodeNext` module behavior, and `verbatimModuleSyntax`. Include `.js` extensions in relative imports so emitted ESM and declaration imports resolve in Node without a bundler.
+- Set the emitted JavaScript target to the lowest syntax level compatible with the declared Node engine floor. Align `@types/node` to that same floor, and check the package on both the minimum supported Node major and a current LTS.
 - Start with ESM and declare `"type": "module"`; do not publish dual CommonJS/ESM output until consumer demand justifies its extra compatibility surface.
 - Define `"exports"` to expose only the supported public entry point. Keep `src` and build output such as `dist` separate.
+- Treat `exports` as the supported API boundary; keep Octokit and upstream response types out of exported declarations. Before publishing, inspect `npm pack --dry-run` and verify the built package can be imported by a consumer.
 - Set and document a minimum Node version that is actively supported and tested. Use Node 22 or newer for the MVP baseline, then revisit the engine range when supported Node LTS lines change.
 - Prefer platform APIs and Octokit over a custom HTTP client. Do not add a cache, retry framework, schema library, or framework integration without a demonstrated need.
 

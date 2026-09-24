@@ -30,7 +30,7 @@ Each item uses a normalized `Repository` type with:
 
 Minimum options: `visibility` (`all`, `public`, or `private`), `sort`, `direction`, and `pageSize`.
 
-Returns one page and a simple way to fetch the next page on demand. It does not fetch details or languages for each repository during listing.
+Returns one page with `items` and `next(): Promise<RepositoryPage | undefined>`. `next()` makes at most one additional request and returns `undefined` when exhausted. It does not fetch details or languages for each repository during listing.
 
 ### `repositories.get(owner, name)`
 
@@ -61,7 +61,3 @@ Returns the language distribution reported by GitHub, separately from listing to
 ## Out of the MVP
 
 OAuth, write operations, commits, profile data, support for other languages, persistent caching, framework-specific React integration, and automatically fetching details for every repository.
-
-## Open API decision
-
-Choose the exact pagination shape (a page with `next()` or an async iterator) during implementation. The requirement is that the next fetch happens explicitly/on demand and does not load all results at once.
