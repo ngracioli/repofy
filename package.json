@@ -26,5 +26,8 @@
     "@types/node": "22.20.4",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "@octokit/rest": "^22.0.1"
   }
 }
