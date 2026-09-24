@@ -15,7 +15,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch src/index.ts",
-    "test": "tsx --test \"test/**/*.test.ts\"",
+    "test": "tsx --test \"test/unit/**/*.test.ts\"",
+    "test:integration": "node --env-file-if-exists=.env --import tsx --test test/integration/*.test.ts",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check": "biome ci .",
