@@ -9,6 +9,10 @@ When this project needs to call GitHub APIs, use the guides in [`docs/github-api
 
 Identify the resource, requested fields or action, GitHub product, and required permissions first. Verify paths, fields, inputs, versions, and permissions against the linked official references; do not guess from memory. Follow pagination and rate-limit guidance, handle API errors, and never expose tokens in source, prompts, or logs. Use the minimum required permissions.
 
+## Feature guide
+
+Keep [`guide.md`](guide.md) at the repository root aligned with the public API. Whenever a feature is added, changed, or removed, update the guide in the same change. Document only implemented features; keep examples and options in sync with the exported API.
+
 ## Commits
 
 Before creating any Git commit, load and follow the commit skill at `.agents/skills/commit/SKILL.md` (also available to Claude at `.claude/skills/commit/SKILL.md`). Use clear English Conventional Commit messages and split independent changes into coherent commits; keep files for one logical change together. Never stage all changes blindly.

@@ -14,9 +14,9 @@ Publish an initial version of the library so a Node.js or TypeScript application
 
 ## Included operations
 
-### `repositories.list(options?)`
+### `repositories.listAll(options?)`, `listPublic(options?)`, `listPrivate(options?)`
 
-Lists only repositories owned by the authenticated user. By default, it excludes repositories accessible only through collaboration or organization membership.
+Lists only repositories owned by the authenticated user. `listAll()` includes owned public and private repositories visible to the token; `listPublic()` and `listPrivate()` select one visibility. All methods exclude repositories accessible only through collaboration or organization membership.
 
 Each item uses a normalized `Repository` type with:
 

@@ -10,6 +10,6 @@ test("lists repositories using the configured GitHub token", {
   const client = createGitHubClient({
     token: process.env.GITHUB_TOKEN as string,
   });
-  const page = await client.repositories.list({ pageSize: 1 });
+  const page = await client.repositories.listAll({ pageSize: 1 });
   assert.ok(Array.isArray(page.items));
 });

@@ -53,10 +53,7 @@ test("lists owned repositories one page at a time and normalizes them", async ()
   };
 
   const client = createGitHubClient({ token: "test-token" });
-  const first = await client.repositories.list({
-    visibility: "all",
-    pageSize: 30,
-  });
+  const first = await client.repositories.listAll({ pageSize: 30 });
   assert.equal(requests.length, 1);
   assert.deepEqual(first.items[0], {
     id: 7,
@@ -90,7 +87,35 @@ test("lists owned repositories one page at a time and normalizes them", async ()
 
 test("rejects invalid page sizes", async () => {
   const client = createGitHubClient({ token: "test-token" });
-  await assert.rejects(client.repositories.list({ pageSize: 101 }), RangeError);
+  await assert.rejects(
+    client.repositories.listAll({ pageSize: 101 }),
+    RangeError,
+  );
+});
+
+test("lists all, public, and private owned repositories through named methods", async () => {
+  const requests: URL[] = [];
+  globalThis.fetch = async (input) => {
+    requests.push(new URL(String(input)));
+    return new Response("[]", {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  const client = createGitHubClient({ token: "test-token" });
+  assert.equal("list" in client.repositories, false);
+  await client.repositories.listAll();
+  await client.repositories.listPublic();
+  await client.repositories.listPrivate();
+
+  assert.deepEqual(
+    requests.map((url) => url.searchParams.get("visibility")),
+    ["all", "public", "private"],
+  );
+  assert.ok(
+    requests.every((url) => url.searchParams.get("affiliation") === "owner"),
+  );
 });
 
 test("maps GitHub failures to safe public errors", async () => {
@@ -104,7 +129,7 @@ test("maps GitHub failures to safe public errors", async () => {
     });
   const token = "do-not-leak";
   const client = createGitHubClient({ token });
-  await assert.rejects(client.repositories.list(), (error: unknown) => {
+  await assert.rejects(client.repositories.listAll(), (error: unknown) => {
     assert.ok(error instanceof GitHubApiError);
     assert.equal(error.status, 401);
     assert.equal(error.requestId, "request-123");

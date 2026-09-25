@@ -20,7 +20,9 @@ This document describes the MVP architecture. It does not design OAuth, write op
 Consumer application
   └─ createGitHubClient({ token })
        └─ public repositories methods
-            ├─ list()         → REST, owner-filtered, paged
+            ├─ listAll()      → REST, owner-filtered, paged
+            ├─ listPublic()   → REST, public owner repositories
+            ├─ listPrivate()  → REST, private owner repositories
             ├─ get()          → GraphQL, selected fields
             └─ getLanguages() → REST
                  └─ one configured Octokit client
@@ -36,8 +38,7 @@ Keep the entry point small. Export the client constructor, public data types, an
 ```ts
 const github = createGitHubClient({ token });
 
-const page = await github.repositories.list({
-  visibility: "all",
+const page = await github.repositories.listAll({
   sort: "updated",
   direction: "desc",
   pageSize: 30,
@@ -52,7 +53,7 @@ const nextPage = await page.next(); // undefined when there is no next page
 
 Each list call returns one page. `next()` performs at most one additional request and returns the next page or `undefined`; it does not prefetch. Do not expose `hasNextPage`: the REST Link header already drives the private iterator state, and learning whether a next page exists must not trigger a speculative request. This method is the stable public contract for pagination.
 
-`repositories.list()` defaults to repositories owned by the authenticated user. It must not silently include repositories available only through collaboration or organization membership. `repositories.get(owner, name)` may read a repository the token can access, consistent with the MVP. `getLanguages()` stays separate so listing many repositories does not trigger one request per item.
+`repositories.listAll()`, `listPublic()`, and `listPrivate()` return repositories owned by the authenticated user. They must not silently include repositories available only through collaboration or organization membership. `repositories.get(owner, name)` may read a repository the token can access, consistent with the MVP. `getLanguages()` stays separate so listing many repositories does not trigger one request per item.
 
 Keep option names and normalized fields documented in `mvp.md`. Validate caller-controlled values such as `pageSize` at the public boundary, with a supported range no larger than GitHub's page maximum. Do not pass arbitrary REST parameters or GraphQL query text through the public API.
 
@@ -134,7 +135,7 @@ Use names that expose whether something is public API, internal GitHub data, or 
 | Types, classes, and enums | `PascalCase` | `Repository`, `RepositoryPage`, `GitHubApiError` |
 | Constants | `UPPER_SNAKE_CASE` only for true module-level constants | `GITHUB_API_VERSION` |
 | Boolean properties | `is`/`has` prefix | `isArchived`, `hasPrivateAccess` |
-| Public method names | domain noun + clear verb | `repositories.list`, `repositories.get`, `repositories.getLanguages` |
+| Public method names | domain noun + clear verb | `repositories.listAll`, `repositories.listPublic`, `repositories.listPrivate` |
 | Tests | source name + `.test.ts` | `repositories.test.ts` |
 | REST fields | map snake_case to public camelCase | `full_name` → `fullName` |
 | GraphQL values | static operation name + named variables | `RepositoryDetails`, `$owner`, `$name` |
